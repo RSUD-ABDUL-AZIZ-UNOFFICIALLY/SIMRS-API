@@ -7,6 +7,7 @@ const dokter = require('../controllers/DokterController');
 const igd = require('../controllers/IgdController');
 const ranap = require('../controllers/RanapController');
 const ralan = require('../controllers/RalanController');
+const kamar = require('../controllers/KamarController');
 
 const middleware = require('../middlewares');
 
@@ -23,5 +24,7 @@ routes.post('/igd/regis', middleware.login, igd.regis);
 routes.post('/ranap/laporan', middleware.login, ranap.getRegLaporan);
 // routes.post('/ralan/regis', middleware.login, igd.regis);
 routes.post('/ralan/laporan', middleware.login, ralan.getRegLaporan);
+routes.get('/kamar/list', middleware.login, kamar.getKamar);
+routes.get('/kamar/kelasKosong', middleware.login, kamar.getkelasKosong);
 
 module.exports = routes;
