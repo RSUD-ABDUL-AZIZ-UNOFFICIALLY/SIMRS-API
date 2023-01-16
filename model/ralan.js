@@ -1,5 +1,12 @@
 const { con } = require('./index.js');
-var getLaporan = async function (from, until) {
+var getLaporan = async function (from, until, jk, golongan) {
+	var b=''
+	if (jk!='') {
+		b+='AND pasien.jk="'+jk+'"'
+	}
+	if (golongan!='') {
+		b+='AND penjab.kd_pj="'+golongan+'"'
+	}
     var sql = `
 	SELECT
 	reg_periksa.no_rawat AS no_rawat, 
@@ -103,7 +110,7 @@ FROM
 	)
 WHERE
 	reg_periksa.tgl_registrasi BETWEEN ? AND ? AND
-	reg_periksa.status_lanjut = 'Ralan'
+	reg_periksa.status_lanjut = 'Ralan' `+b+`
 	`;
 	
 	var sql2 = `

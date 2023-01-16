@@ -1,6 +1,13 @@
 const { con } = require('./index.js');
-var getLaporan = async function (from, until) {
-    var sql = `
+var getLaporan = async function (from, until, jk, golongan) {
+    var b=''
+	if (jk!='') {
+		b+='AND pasien.jk="'+jk+'"'
+	}
+	if (golongan!='') {
+		b+='AND penjab.kd_pj="'+golongan+'"'
+	}
+	var sql = `
 	SELECT DISTINCT
 	reg_periksa.no_rawat, 
 	reg_periksa.no_rkm_medis, 
@@ -92,7 +99,7 @@ FROM
 	WHERE
 	reg_periksa.tgl_registrasi BETWEEN ? AND ? AND
 	reg_periksa.status_lanjut = 'Ranap' AND
-	kamar_inap.stts_pulang NOT LIKE 'Pindah Kamar'
+	kamar_inap.stts_pulang NOT LIKE 'Pindah Kamar' `+b+`
 		`;
 
     // const result = await con.query(sql, [from, until]);
