@@ -1,5 +1,12 @@
 const { con } = require('./index.js');
-var getLaporan = async function (from, until) {
+var getLaporan = async function (from, until, jk, golongan) {
+	var b=''
+	if (jk!='') {
+		b+='AND pasien.jk="'+jk+'"'
+	}
+	if (golongan!='') {
+		b+='AND penjab.kd_pj="'+golongan+'"'
+	}
     var sql = `
 	SELECT
 	reg_periksa.no_rawat AS no_rawat, 
@@ -25,8 +32,8 @@ var getLaporan = async function (from, until) {
 	poliklinik.nm_poli AS nm_poli, 
 	dokter.nm_dokter AS nm_dokter, 
 	penjab.png_jawab AS png_jawab, 
-	penyakit.nm_penyakit AS nm_penyakit, 
-	diagnosa_pasien.kd_penyakit AS kd_penyakit
+	reg_periksa.stts_daftar AS kunjungan, 
+	reg_periksa.status_poli AS pengunjung
 FROM
 	(
 		(
@@ -38,83 +45,128 @@ FROM
 								(
 									(
 										(
-											reg_periksa
+											(
+												(
+													reg_periksa
+													join
+													pasien
+													ON 
+														(
+															reg_periksa.no_rkm_medis = pasien.no_rkm_medis
+														)
+												)
+												join
+												penjab
+												ON 
+													(
+														reg_periksa.kd_pj = penjab.kd_pj
+													)
+											)
 											join
-											pasien
+											dokter
 											ON 
 												(
-													reg_periksa.no_rkm_medis = pasien.no_rkm_medis
+													reg_periksa.kd_dokter = dokter.kd_dokter
 												)
 										)
-										join
-										penjab
-										ON 
-											(
-												reg_periksa.kd_pj = penjab.kd_pj
-											)
 									)
-									join
-									dokter
-									ON 
-										(
-											reg_periksa.kd_dokter = dokter.kd_dokter
-										)
 								)
 								join
-								diagnosa_pasien
+								poliklinik
 								ON 
 									(
-										reg_periksa.no_rawat = diagnosa_pasien.no_rawat
+										reg_periksa.kd_poli = poliklinik.kd_poli
 									)
 							)
 							join
-							penyakit
+							kelurahan
 							ON 
 								(
-									diagnosa_pasien.kd_penyakit = penyakit.kd_penyakit
+									pasien.kd_kel = kelurahan.kd_kel
 								)
 						)
 						join
-						poliklinik
+						kecamatan
 						ON 
 							(
-								reg_periksa.kd_poli = poliklinik.kd_poli
+								pasien.kd_kec = kecamatan.kd_kec
 							)
 					)
 					join
-					kelurahan
+					propinsi
 					ON 
 						(
-							pasien.kd_kel = kelurahan.kd_kel
+							pasien.kd_prop = propinsi.kd_prop
 						)
 				)
 				join
-				kecamatan
+				kabupaten
 				ON 
 					(
-						pasien.kd_kec = kecamatan.kd_kec
+						pasien.kd_kab = kabupaten.kd_kab
 					)
 			)
-			join
-			propinsi
-			ON 
-				(
-					pasien.kd_prop = propinsi.kd_prop
-				)
 		)
-		join
-		kabupaten
-		ON 
-			(
-				pasien.kd_kab = kabupaten.kd_kab
-			)
 	)
 WHERE
 	reg_periksa.tgl_registrasi BETWEEN ? AND ? AND
-	reg_periksa.status_lanjut = 'Ralan'
+	reg_periksa.status_lanjut = 'Ralan' `+b+`
 	`;
+	
+	var sql2 = `
+SELECT DISTINCT
+	diagnosa_pasien.kd_penyakit AS kode_icd10, 
+	diagnosa_pasien.no_rawat, 
+	diagnosa_pasien.status_penyakit AS kasus,
+	penyakit.nm_penyakit AS deskripsi_icd10
+FROM
+	diagnosa_pasien
+	INNER JOIN
+	penyakit
+	ON 
+		diagnosa_pasien.kd_penyakit = penyakit.kd_penyakit
+WHERE
+	diagnosa_pasien.no_rawat = ?
+ORDER BY
+	diagnosa_pasien.prioritas ASC
+LIMIT 3`;
+
+var sql3 = `
+SELECT DISTINCT
+	prosedur_pasien.kode AS kode_icd9, 
+	icd9.deskripsi_pendek AS deskripsi_icd9, 
+	prosedur_pasien.no_rawat, 
+	reg_periksa.no_reg
+FROM
+	prosedur_pasien
+	LEFT JOIN
+	icd9
+	ON 
+		prosedur_pasien.kode = icd9.kode
+	INNER JOIN
+	reg_periksa
+	ON 
+		prosedur_pasien.no_rawat = reg_periksa.no_rawat
+WHERE
+	prosedur_pasien.no_rawat = ? 
+ORDER BY
+	prosedur_pasien.prioritas ASC
+LIMIT 1`;
+
+	var a = [];
+	var valueToPush = [];
     const result = await con.query(sql, [from, until]);
-    return result;
+	
+	for (const iterator of result) {
+		const icd10 = await con.query(sql2, [iterator.no_rawat]);
+		const icd9 = await con.query(sql3, [iterator.no_rawat]);
+		valueToPush=iterator
+		valueToPush['icd10']=icd10
+		valueToPush['icd9']=icd9
+		a.push(valueToPush)
+	}
+	// console.log(a);
+    return a;
 };
 
 module.exports = {
