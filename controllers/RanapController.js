@@ -4,8 +4,8 @@ module.exports = {
     getRegLaporan: async (req, res) => {
         const secretKey = process.env.JWT_SECRET_KEY;
         try {
-            const { from, until, jk, golongan } = req.body;
-        let data = await getLaporan(from, until, jk, golongan);
+            const { from, until, kfrom, kuntil, jk, golongan } = req.body;
+        let data = await getLaporan(from, until, kfrom, kuntil, jk, golongan);
        return res.status(200).json({
             error: false,
             message: 'Laporan Rawat Inap',

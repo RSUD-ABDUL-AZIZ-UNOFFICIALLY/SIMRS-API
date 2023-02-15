@@ -10,7 +10,7 @@ var getLaporan = async function (from, until, jk, golongan) {
     var sql = `
 	SELECT
 	reg_periksa.no_rawat AS no_rawat, 
-	DATE_FORMAT(tgl_registrasi, "%d-%m-%Y") AS tgl_registrasi, 
+	DATE_FORMAT(tgl_registrasi, "%Y-%m-%d") AS tgl_registrasi, 
 	reg_periksa.jam_reg AS jam_reg, 
 	reg_periksa.no_rkm_medis AS no_rkm_medis, 
 	pasien.no_ktp AS no_ktp, 
@@ -21,7 +21,7 @@ var getLaporan = async function (from, until, jk, golongan) {
 	pasien.suku_bangsa AS suku_bangsa, 
 	pasien.pekerjaan AS pekerjaan, 
 	pasien.pnd AS pnd, 
-	DATE_FORMAT(pasien.tgl_lahir, "%d-%m-%Y") AS tgl_lahir, 
+	DATE_FORMAT(pasien.tgl_lahir, "%Y-%m-%d") AS tgl_lahir, 
 	pasien.umur AS umur, 
 	pasien.alamat AS alamat, 
 	kelurahan.nm_kel AS nm_kel, 
@@ -153,6 +153,21 @@ ORDER BY
 	prosedur_pasien.prioritas ASC
 LIMIT 1`;
 
+var sql5 = `
+SELECT DISTINCT
+mutasi_berkas.status, 
+DATE_FORMAT(mutasi_berkas.dikirim, "%d-%m-%Y") AS dikirim,
+DATE_FORMAT(mutasi_berkas.diterima, "%d-%m-%Y") AS diterima,
+DATE_FORMAT(mutasi_berkas.kembali, "%d-%m-%Y") AS tgl_kembali,
+DATE_FORMAT(mutasi_berkas.kembali, "%H:%i") AS jam_kembali,
+DATE_FORMAT(mutasi_berkas.tidakada, "%d-%m-%Y") AS tidakada,
+DATE_FORMAT(mutasi_berkas.ranap, "%d-%m-%Y") AS ranap
+FROM
+	mutasi_berkas
+WHERE
+	mutasi_berkas.no_rawat = ? 
+`;
+
 	var a = [];
 	var valueToPush = [];
     const result = await con.query(sql, [from, until]);
@@ -160,9 +175,11 @@ LIMIT 1`;
 	for (const iterator of result) {
 		const icd10 = await con.query(sql2, [iterator.no_rawat]);
 		const icd9 = await con.query(sql3, [iterator.no_rawat]);
+		const mutasi_berkas = await con.query(sql5, [iterator.no_rawat]);
 		valueToPush=iterator
 		valueToPush['icd10']=icd10
 		valueToPush['icd9']=icd9
+		valueToPush['mutasi_berkas']=mutasi_berkas
 		a.push(valueToPush)
 	}
 	// console.log(a);

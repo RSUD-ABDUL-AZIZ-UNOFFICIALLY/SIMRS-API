@@ -1,6 +1,13 @@
 const { con } = require('./index.js');
-var getLaporan = async function (from, until, jk, golongan) {
+var getLaporan = async function (from, until, kfrom, kuntil, jk, golongan) {
     var b=''
+	var c=''
+	if (from|until!='') {
+		c+='kamar_inap.tgl_masuk BETWEEN "'+from+'" AND "'+until+'" AND'
+	} 
+	if (kfrom|kuntil!=''){
+		c+='kamar_inap.tgl_keluar BETWEEN "'+kfrom+'" AND "'+kuntil+'" AND'
+	}
 	if (jk!='') {
 		b+='AND pasien.jk="'+jk+'"'
 	}
@@ -18,18 +25,17 @@ var getLaporan = async function (from, until, jk, golongan) {
 	pasien.suku_bangsa, 
 	pasien.pekerjaan, 
 	pasien.pnd, 
-	DATE_FORMAT(pasien.tgl_lahir, "%d-%m-%Y") AS tgl_lahir, 
+	DATE_FORMAT(pasien.tgl_lahir, "%Y-%m-%d") AS tgl_lahir, 
 	pasien.umur, 
-	pasien.jk AS jk,
+	pasien.jk AS jk, 
 	pasien.alamat, 
 	pasien.no_tlp, 
 	kelurahan.nm_kel, 
 	kecamatan.nm_kec, 
 	kabupaten.nm_kab, 
 	propinsi.nm_prop, 
-	DATE_FORMAT(reg_periksa.tgl_registrasi, "%d-%m-%Y") AS tgl_registrasi, 
+	DATE_FORMAT(reg_periksa.tgl_registrasi, "%Y-%m-%d") AS tgl_registrasi, 
 	reg_periksa.kd_poli, 
-	dokter.nm_dokter, 
 	DATE_FORMAT(kamar_inap.tgl_masuk, "%d-%m-%Y") AS tgl_masuk, 
 	kamar_inap.jam_masuk, 
 	DATE_FORMAT(kamar_inap.tgl_keluar, "%d-%m-%Y") AS tgl_keluar, 
@@ -40,8 +46,8 @@ var getLaporan = async function (from, until, jk, golongan) {
 	kamar_inap.stts_pulang, 
 	kamar_inap.kd_kamar, 
 	bangsal.nm_bangsal, 
-	reg_periksa.stts_daftar AS kunjungan,
-	kamar.kelas,
+	reg_periksa.stts_daftar AS kunjungan, 
+	kamar.kelas, 
 	poliklinik.nm_poli AS masuk_melalui, 
 	suku_bangsa.nama_suku_bangsa, 
 	penjab.png_jawab
@@ -68,10 +74,6 @@ FROM
 	ON 
 		pasien.kd_prop = propinsi.kd_prop
 	INNER JOIN
-	dokter
-	ON 
-		reg_periksa.kd_dokter = dokter.kd_dokter
-	INNER JOIN
 	kamar_inap
 	ON 
 		reg_periksa.no_rawat = kamar_inap.no_rawat
@@ -97,7 +99,7 @@ FROM
 		pasien.kd_pj = penjab.kd_pj AND
 		reg_periksa.kd_pj = penjab.kd_pj
 	WHERE
-	reg_periksa.tgl_registrasi BETWEEN ? AND ? AND
+	`+c+`
 	reg_periksa.status_lanjut = 'Ranap' AND
 	kamar_inap.stts_pulang NOT LIKE 'Pindah Kamar' `+b+`
 		`;
@@ -144,16 +146,50 @@ ORDER BY
 	prosedur_pasien.prioritas ASC
 LIMIT 1`;
 
+var sql4 = `
+SELECT DISTINCT
+	dpjp_ranap.kd_dokter, 
+	dokter.nm_dokter, 
+	dpjp_ranap.no_rawat
+	FROM
+	dpjp_ranap
+	INNER JOIN
+	dokter
+	ON 
+	dpjp_ranap.kd_dokter = dokter.kd_dokter
+WHERE
+	dpjp_ranap.no_rawat = ? 
+LIMIT 1`;
+
+var sql5 = `
+SELECT DISTINCT
+mutasi_berkas.status, 
+DATE_FORMAT(mutasi_berkas.dikirim, "%d-%m-%Y") AS dikirim,
+DATE_FORMAT(mutasi_berkas.diterima, "%d-%m-%Y") AS diterima,
+DATE_FORMAT(mutasi_berkas.kembali, "%d-%m-%Y") AS tgl_kembali,
+DATE_FORMAT(mutasi_berkas.kembali, "%H:%i") AS jam_kembali,
+DATE_FORMAT(mutasi_berkas.tidakada, "%d-%m-%Y") AS tidakada,
+DATE_FORMAT(mutasi_berkas.ranap, "%d-%m-%Y") AS ranap
+FROM
+	mutasi_berkas
+WHERE
+	mutasi_berkas.no_rawat = ? 
+`;
+
 	var a = [];
 	var valueToPush = [];
-    const result = await con.query(sql, [from, until]);
+    const result = await con.query(sql);
 	
 	for (const iterator of result) {
 		const icd10 = await con.query(sql2, [iterator.no_rawat]);
 		const icd9 = await con.query(sql3, [iterator.no_rawat]);
+		const dpjp = await con.query(sql4, [iterator.no_rawat]);
+		const mutasi_berkas = await con.query(sql5, [iterator.no_rawat]);
 		valueToPush=iterator
 		valueToPush['icd10']=icd10
 		valueToPush['icd9']=icd9
+		valueToPush['dpjp']=dpjp
+		valueToPush['mutasi_berkas']=mutasi_berkas
 		a.push(valueToPush)
 	}
 	// console.log(a);
