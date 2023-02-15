@@ -1,4 +1,7 @@
-/.env
-/node_modules
-/package-lock.json
-/test.js
+/nbproject/
+/.idea/*
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
